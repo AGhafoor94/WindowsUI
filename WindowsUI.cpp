@@ -32,6 +32,8 @@ int WINAPI wWinMain (HINSTANCE hInstance, HINSTANCE hPreviousInstance, LPWSTR lp
 
 		Setting properties of the windowClass that I want to use below.
 	*/
+	// 
+	windowClass.cbSize = sizeof(windowClass);
 	windowClass.style = CS_OWNDC | CS_VREDRAW | CS_HREDRAW;
 	// Bottom property needs this function: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nc-winuser-wndproc
 	windowClass.lpfnWndProc = MainWindowCallback;
@@ -62,7 +64,29 @@ int WINAPI wWinMain (HINSTANCE hInstance, HINSTANCE hPreviousInstance, LPWSTR lp
 
 		if (handleWindow)
 		{
+			// Get messages when running
 
+			running = true;
+			while (running)
+			{
+				// Create message instance
+				MSG message;
+				/*
+					Retrieves message from calling thread queue.
+					https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getmessage
+
+					GetMessage([out] message, handleWindow, wMsgFilterMin, wMsgFilterMax)
+					Might be returning a -1 so need to handle that
+				*/
+				BOOL messageResult = GetMessage(&message, handleWindow, 0, 0);
+				if (messageResult > 0)
+				{
+					// Translate virtual key messages into character messages. Posted so that the next time a thread calls GetMessage or PeekMessage, the message can be read
+					TranslateMessage(&message);
+					// Dispatches a message to a window procedure, used to dispatch message retreived by GetMessage
+					DispatchMessageA(&message);
+				}
+			}
 		}
 	}
 
@@ -79,9 +103,35 @@ LRESULT CALLBACK MainWindowCallback(HWND handleWindow, UINT message, WPARAM wPar
 	*/
 	LRESULT result = 0;
 	// Switch statement to handle messages like resizing the window
+	// https://learn.microsoft.com/en-us/windows/win32/winmsg/about-messages-and-message-queues#system-defined-messages
+	// Using: https://learn.microsoft.com/en-us/windows/win32/winmsg/window-notifications
+
 	switch (message)
 	{
+		case WM_ACTIVATEAPP:
+			// https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-activateapp
+			running = true;
+			OutputDebugStringA("WM_ACTIVATEAPP\n");
+			break;
+		case WM_SIZE:
+			// https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-sizing
+			OutputDebugStringA("WM_SIZE\n");
+			break;
+		case WM_CLOSE:
+			// https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-close
+			OutputDebugStringA("WM_CLOSE\n");
+			running = false;
+			break;
+		case WM_DESTROY:
+			// https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-destroy
+			OutputDebugStringA("WM_DESTROY\n");
+			running = false;
+			break;
 		default:
+			// Handle all other messages
+			// DefWindowProc: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-defwindowproca
+			result = DefWindowProcA(handleWindow, message, wParam, lParam);
 			break;
 	}
+	return result;
 }

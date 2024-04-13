@@ -3,13 +3,12 @@
 #include "framework.h"
 #include "WindowsUI.h"
 
-// This is the current instance of the window
-HINSTANCE hInstance; 
-
 // place holder to check if the app is running or not
 static bool running = false;
 // Callback
 LRESULT CALLBACK MainWindowCallback(HWND handleWindow, UINT message, WPARAM wParam, LPARAM lParam);
+
+HMENU AddMenuItems(HWND handleWindow);
 /*
 	Main function that runs
 	Function returns int. Can pass status codes to another program
@@ -18,7 +17,7 @@ LRESULT CALLBACK MainWindowCallback(HWND handleWindow, UINT message, WPARAM wPar
 
 int WINAPI wWinMain (HINSTANCE hInstance, HINSTANCE hPreviousInstance, LPWSTR lpCommandLine, int nCommandShow) 
 {
-	const char* className = "Windows UI App";
+	const char* className = "Peace for Palestine";
 
 	// Initialise structure for window.
 	// https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-wndclassexa
@@ -37,6 +36,7 @@ int WINAPI wWinMain (HINSTANCE hInstance, HINSTANCE hPreviousInstance, LPWSTR lp
 	windowClass.style = CS_OWNDC | CS_VREDRAW | CS_HREDRAW;
 	// Bottom property needs this function: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nc-winuser-wndproc
 	windowClass.lpfnWndProc = MainWindowCallback;
+	windowClass.hCursor = LoadCursorA(hInstance, IDC_ARROW);
 	windowClass.hInstance = hInstance;
 	windowClass.lpszClassName = className;
 
@@ -60,7 +60,7 @@ int WINAPI wWinMain (HINSTANCE hInstance, HINSTANCE hPreviousInstance, LPWSTR lp
 				- Handle Window Instance: Passed down from wWinMain function
 				- Long Pointer Parameter (Optional): Can be set to NULL / 0
 		*/
-		HWND handleWindow = CreateWindowExA(0, windowClass.lpszClassName, "Windows UI Name", WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, hInstance, 0);
+		HWND handleWindow = CreateWindowExA(0, windowClass.lpszClassName, "Peace for Palestine", WS_OVERLAPPEDWINDOW | WS_VISIBLE | WS_CAPTION | WS_SYSMENU, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, hInstance, 0);
 
 		if (handleWindow)
 		{
@@ -86,6 +86,9 @@ int WINAPI wWinMain (HINSTANCE hInstance, HINSTANCE hPreviousInstance, LPWSTR lp
 					// Dispatches a message to a window procedure, used to dispatch message retreived by GetMessage
 					DispatchMessageA(&message);
 				}
+				else {
+					OutputDebugStringA("Log errors here\n");
+				}
 			}
 		}
 	}
@@ -101,11 +104,13 @@ LRESULT CALLBACK MainWindowCallback(HWND handleWindow, UINT message, WPARAM wPar
 			- Message: Windows telling us the value to handle
 			- LResult (Long Pointer 64bits): Lets Windows know what to do when certain messages are returned
 	*/
+
+	// HTTPS REST requests: https://learn.microsoft.com/en-us/windows/win32/wininet/http-sessions
+
 	LRESULT result = 0;
 	// Switch statement to handle messages like resizing the window
 	// https://learn.microsoft.com/en-us/windows/win32/winmsg/about-messages-and-message-queues#system-defined-messages
 	// Using: https://learn.microsoft.com/en-us/windows/win32/winmsg/window-notifications
-
 	switch (message)
 	{
 		case WM_ACTIVATEAPP:
@@ -122,11 +127,37 @@ LRESULT CALLBACK MainWindowCallback(HWND handleWindow, UINT message, WPARAM wPar
 			OutputDebugStringA("WM_CLOSE\n");
 			running = false;
 			break;
+		case WM_CREATE:
+			AddMenuItems(handleWindow);
+			break;
+		case WM_COMMAND:
+			// Handle the menu items
+			switch (wParam)
+			{
+				case 1:
+					MessageBoxA(handleWindow, "File has been clicked", "File", 0);
+					break;
+				case 2:
+					MessageBoxA(handleWindow, "Help has been clicked", "Help", 0);
+					break;
+				default:
+					break;
+			}
+			break;
 		case WM_DESTROY:
 			// https://learn.microsoft.com/en-us/windows/win32/winmsg/wm-destroy
 			OutputDebugStringA("WM_DESTROY\n");
+			PostQuitMessage(0);
 			running = false;
 			break;
+		case WM_PAINT:
+			{
+				// paint the window
+				PAINTSTRUCT paint;
+				HDC deviceContext = BeginPaint(handleWindow, &paint);
+				EndPaint(handleWindow, &paint);
+				break;
+			}
 		default:
 			// Handle all other messages
 			// DefWindowProc: https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-defwindowproca
@@ -134,4 +165,26 @@ LRESULT CALLBACK MainWindowCallback(HWND handleWindow, UINT message, WPARAM wPar
 			break;
 	}
 	return result;
+}
+
+HMENU AddMenuItems(HWND handleWindow)
+{
+	/*
+		Creating Menus:
+			- Have to create an instance of HMENU
+			- Append to the window. 1 is the ID of the menu item. When the message is passed back WM_COMMAND we can find it
+			- Set the menu
+	*/
+	HMENU handleMenu = CreateMenu();
+	// Drop down menu
+
+	HMENU fileMenu = CreateMenu();
+
+	AppendMenuA(handleMenu, MF_POPUP,(UINT_PTR) fileMenu, "File");
+	AppendMenuA(fileMenu, MF_STRING,1, "Test");
+	AppendMenuA(handleMenu, MF_STRING, 2, "Help");
+
+	SetMenu(handleWindow, handleMenu);
+
+	return handleMenu;
 }
